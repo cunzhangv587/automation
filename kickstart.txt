@@ -1,0 +1,82 @@
+mount /dev/cdrom /mnt
+yum localinstall nginx-1.6.3-1.x86_64.rpm
+yum install createrepo -y
+mkdir /application/nginx/html/CentOS-6.7-x86.64
+cp -a /mnt/* /application/nginx/html/CentOS-6.7-x86.64/
+
+[root@salt-master ~]# createrepo -pdo /application/nginx/html/CentOS-6.7-x86.64/ /application/nginx/html/CentOS-6.7-x86.64/
+[root@salt-master ~]# createrepo -g `ls /application/nginx/html/CentOS-6.7-x86.64/repodata/*-comps.xml` /application/nginx/html/CentOS-6.7-x86.64/
+yum install tftp-server dhcp xinetd -y
+
+[root@salt-master ~]# vim /etc/xinetd.d/tftp 
+        disable                 = no
+
+[root@salt-master ~]# vim /etc/dhcp/dhcpd.conf		
+subnet 172.16.1.0 netmask 255.255.255.0 {
+        range 172.16.1.210 172.16.1.220;
+        option subnet-mask 255.255.255.0;
+        default-lease-time 21600;
+        max-lease-time 43200;
+        next-server 172.16.1.101;
+        filename "/pxelinux.0";
+}
+# 指定dhcp监听网卡
+[root@salt-master ~]# vim /etc/sysconfig/dhcpd
+# Command line options here
+DHCPDARGS=eth1
+
+[root@salt-master ~]# /etc/init.d/dhcpd start
+正在启动 dhcpd：                                           [确定]
+[root@salt-master ~]# /etc/init.d/nginx start
+正在启动 nginx：                                           [确定]
+[root@salt-master ~]# /etc/init.d/xinetd start
+正在启动 xinetd：                                          [确定]
+
+[root@salt-master ~]# ss -lntup
+Netid  State      Recv-Q Send-Q     Local Address:Port       Peer Address:Port 
+udp    UNCONN     0      0                      *:67                    *:*      users:(("dhcpd",2600,7))
+udp    UNCONN     0      0                      *:69                    *:*      users:(("xinetd",2654,5))
+tcp    LISTEN     0      511                    *:80                    *:*      users:(("nginx",2622,10),("nginx",2870,10))
+tcp    LISTEN     0      128                   :::22                   :::*      users:(("sshd",1344,4))
+tcp    LISTEN     0      128                    *:22                    *:*      users:(("sshd",1344,3))
+
+vim /application/nginx/html/CentOS-6.7-x86.64/CentOS-6.7-x86.64.cfg
+vim /application/nginx/html/ks_config/optimization.sh
+[root@salt-master ~]# curl --head http://10.0.0.101/CentOS-6.7-x86.64/CentOS-6.7-x86.64.cfg
+HTTP/1.1 200 OK
+[root@salt-master ~]# curl --head http://10.0.0.101/ks_config/optimization.sh
+HTTP/1.1 200 OK
+
+
+[root@salt-master ~]# cp /usr/share/syslinux/pxelinux.0 /var/lib/tftpboot/
+[root@salt-master ~]# cp -a /application/nginx/html/CentOS-6.7-x86.64/isolinux/* /var/lib/tftpboot/
+[root@salt-master ~]# mkdir -p /var/lib/tftpboot/pxelinux.cfg
+[root@salt-master ~]# cp /application/nginx/html/CentOS-6.7-x86.64/isolinux/isolinux.cfg /var/lib/tftpboot/pxelinux.cfg/default
+
+[root@salt-master ~]# ll /var/lib/tftpboot/                                     
+总用量 40180
+-r--r--r-- 1 root root     2048 8月   5 2015 boot.cat
+-r--r--r-- 1 root root       84 8月   5 2015 boot.msg
+-r--r--r-- 1 root root      321 8月   5 2015 grub.conf
+-r--r--r-- 1 root root 36356362 8月   5 2015 initrd.img
+-r--r--r-- 1 root root    24576 8月   5 2015 isolinux.bin
+-r--r--r-- 1 root root      923 8月   5 2015 isolinux.cfg
+-r--r--r-- 1 root root   165080 8月   5 2015 memtest
+-rw-r--r-- 1 root root    26759 3月  25 02:20 pxelinux.0
+drwxr-xr-x 2 root root     4096 3月  25 02:33 pxelinux.cfg
+-r--r--r-- 1 root root   151230 8月   5 2015 splash.jpg
+-r--r--r-- 1 root root     2215 8月   5 2015 TRANS.TBL
+-r--r--r-- 1 root root   163728 8月   5 2015 vesamenu.c32
+-r-xr-xr-x 1 root root  4220560 8月   5 2015 vmlinuz
+
+[root@salt-master tftpboot]# ll pxelinux.cfg/
+总用量 4
+-r--r--r-- 1 root root 923 3月  25 02:34 default
+
+[root@salt-master tftpboot]# cat pxelinux.cfg/default 
+default ks
+prompt 0
+label ks
+  kernel vmlinuz
+  append initrd=initrd.img ks=http://10.0.0.101/CentOS-6.7-x86.64/CentOS-6.7-x86.64.cfg
+  append initrd=initrd.img ks=http://10.0.0.101/CentOS-6.7-x86.64/CentOS-6.7-x86.64.cfg ksdevice=eth1

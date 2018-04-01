@@ -1,0 +1,241 @@
+###	cobbler
+
+## 项目地址：http://cobbler.github.io/
+
+## 安装
+	#. 安装epel源
+	[root@cobbler ~]# wget -O /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-6.repo
+
+	#. 安装cobbler必备组件
+	[root@cobbler ~]# yum install cobbler httpd tftp dhcp pykickstart -y
+
+	#. 配置http监听
+	[root@cobbler ~]# vim /etc/httpd/conf/httpd.conf  
+	ServerName localhost:80
+	
+	[root@cobbler ~]# /etc/init.d/httpd restart
+
+	#. 启动cobbler
+	[root@cobbler ~]# /etc/init.d/cobblerd restart
+
+	
+## 重要目录
+	#.	[root@cobbler ~]# ll /var/www/cobbler/
+	总用量 36
+	drwxr-xr-x 2 root root 4096 3月  31 21:34 aux
+	drwxr-xr-x 3 root root 4096 3月  31 23:16 images
+	drwxr-xr-x 4 root root 4096 3月  31 23:03 ks_mirror		# 所有镜像文件
+	drwxr-xr-x 2 root root 4096 3月  31 23:05 links
+	drwxr-xr-x 2 root root 4096 7月  14 2016 localmirror
+	drwxr-xr-x 2 root root 4096 7月  14 2016 pub
+	drwxr-xr-x 2 root root 4096 7月  14 2016 rendered
+	drwxr-xr-x 2 root root 4096 7月  14 2016 repo_mirror	# 所有仓库镜像
+	drwxr-xr-x 2 root root 4096 3月  31 21:34 svc
+	
+	#. [root@cobbler ~]# ll /var/lib/cobbler/
+	总用量 68
+	drwxr-xr-x 10 root   root  4096 3月  31 21:34 config
+	-rw-r--r--  1 root   root 37486 7月  14 2016 distro_signatures.json
+	drwxr-xr-x  3 root   root  4096 3月  31 23:11 kickstarts			# kickstart文件
+	drwxr-xr-x  2 root   root  4096 3月  31 23:16 loaders				# 系统启动所需文件，需要下载，有坑
+	-rw-r--r--  1 root   root     0 3月  31 21:34 lock
+	drwxr-xr-x  2 root   root  4096 3月  31 21:34 scripts
+	drwxr-xr-x  2 root   root  4096 3月  31 21:34 snippets				# 配置、脚本文件
+	drwxr-xr-x  7 root   root  4096 3月  31 21:34 triggers
+	-rw-------  1 apache root  1024 3月  31 23:01 web.ss
+	
+	#. 所有配置文件
+	[root@cobbler ~]# ll /etc/cobbler/
+	总用量 124
+	-rw-r--r-- 1 root root    40 7月  14 2016 auth.conf
+	-rw-r--r-- 1 root root    75 7月  14 2016 cheetah_macros
+	-rw-r--r-- 1 root root  2409 7月  14 2016 cobbler_bash
+	-rw-r--r-- 1 root root 11636 7月  14 2016 completions
+	-rw-r--r-- 1 root root  2931 3月  31 23:02 dhcp.template			# dhcp配置文件
+	-rw-r--r-- 1 root root   385 7月  14 2016 dnsmasq.template
+	-rw-r--r-- 1 root root  2014 7月  14 2016 import_rsync_whitelist
+	drwxr-xr-x 2 root root  4096 3月  31 21:34 iso
+	drwxr-xr-x 2 root root  4096 3月  31 21:34 ldap
+	-rw-r--r-- 1 root root  3076 7月  14 2016 modules.conf
+	-rw-r--r-- 1 root root    43 7月  14 2016 mongodb.conf
+	-rw-r--r-- 1 root root   680 7月  14 2016 named.template
+	drwxr-xr-x 2 root root  4096 3月  31 21:34 power
+	drwxr-xr-x 2 root root  4096 3月  31 23:07 pxe
+	drwxr-xr-x 2 root root  4096 3月  31 21:34 reporting
+	-rw-r--r-- 1 root root   368 7月  14 2016 rsync.exclude
+	-rw-r--r-- 1 root root  1073 7月  14 2016 rsync.template
+	-rw-r--r-- 1 root root   754 7月  14 2016 secondary.template
+	-rw-r--r-- 1 root root 19650 3月  31 22:59 settings					# cobbler主要配置文件
+	-rw-r--r-- 1 root root   740 7月  14 2016 tftpd.template
+	-rw-r--r-- 1 root root   848 7月  14 2016 users.conf
+	-rw-r--r-- 1 root root    49 7月  14 2016 users.digest
+	-rw-r--r-- 1 root root   117 7月  14 2016 version
+	-rw-r--r-- 1 root root   522 7月  14 2016 zone.template
+	drwxr-xr-x 2 root root  4096 7月  14 2016 zone_templates
+	
+	
+## 配置
+	#. 检查cobbler配置
+	[root@cobbler ~]# cobbler check
+The following are potential configuration items that you may want to fix:
+*1 : The 'server' field in /etc/cobbler/settings must be set to something other than localhost, or kickstarting features will not work.  This should be a resolvable hostname or IP for the boot server as reachable by all machines that will use it.
+*2 : For PXE to be functional, the 'next_server' field in /etc/cobbler/settings must be set to something other than 127.0.0.1, and should match the IP of the boot server on the PXE network.
+*3 : change 'disable' to 'no' in /etc/xinetd.d/tftp
+*4 : some network boot-loaders are missing from /var/lib/cobbler/loaders, you may run 'cobbler get-loaders' to download them, or, if you only want to handle x86/x86_64 netbooting, you may ensure that you have installed a *recent* version of the syslinux package installed and can ignore this message entirely.  Files in this directory, should you want to support all architectures, should include pxelinux.0, menu.c32, elilo.efi, and yaboot. The 'cobbler get-loaders' command is the easiest way to resolve these requirements.
+*5 : change 'disable' to 'no' in /etc/xinetd.d/rsync
+6 : debmirror package is not installed, it will be required to manage debian deployments and repositories
+*7 : The default password used by the sample templates for newly installed machines (default_password_crypted in /etc/cobbler/settings) is still set to 'cobbler' and should be changed, try: "openssl passwd -1 -salt 'random-phrase-here' 'your-password-here'" to generate new one
+8 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
+Restart cobblerd and then run 'cobbler sync' to apply changes.
+
+	#. 按照check结果进行配置
+	[root@cobbler ~]# openssl passwd -1 -salt 'cunzhang' '123456'		# 生成密码
+	$1$cunzhang$gZD4DHWBHzw48765ka80b0
+
+	[root@cobbler ~]# vim /etc/cobbler/settings
+	server: 10.0.0.101
+	next_server: 10.0.0.101
+	manage_dhcp: 1
+	default_password_crypted: "$1$cunzhang$gZD4DHWBHzw48765ka80b0"
+
+	[root@cobbler ~]# vim /etc/xinetd.d/tftp
+	disable                 = no
+
+	[root@cobbler ~]# vim /etc/xinetd.d/rsync
+	disable = no
+	
+	[root@cobbler ~]# cobbler get-loaders		# 网络原因，此处容易有坑
+
+	#. 修改dhcp模板，会自动生成dhcp配置文件
+	[root@cobbler ~]# vim /etc/cobbler/dhcp.template
+	subnet 10.0.0.0 netmask 255.255.255.0 {
+     option routers             10.0.0.2;
+     option domain-name-servers 10.0.0.2;
+     option subnet-mask         255.255.255.0;
+     range dynamic-bootp        10.0.0.200 10.0.0.220;
+
+	#. 同步配置文件	---- 每次修改配置后都要执行
+	[root@cobbler ~]# cobbler sync
+
+	#. 再次check
+	[root@cobbler ~]# cobbler check
+	The following are potential configuration items that you may want to fix:
+
+	1 : debmirror package is not installed, it will be required to manage debian deployments and repositories
+	2 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
+
+	Restart cobblerd and then run 'cobbler sync' to apply changes.
+	########	debmirror、fencing tools可以不安装，不依赖
+
+	#. 导入镜像
+	[root@cobbler ~]# cobbler import --path=/mnt/ --name=CentOS-6.9-x86_64 --arch=x86_64
+	#. 导入镜像位置
+	[root@cobbler ~]# ll /var/www/cobbler/ks_mirror/
+		
+	#	定义kickstart文件
+	[root@cobbler ~]# vim /var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.ks
+	
+	#	指定kickstart文件
+	[root@cobbler ~]# cobbler profile edit --name=CentOS-6.7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.ks
+	
+	#	CentOS7修改网卡显示名称
+	## [root@cobbler ~]# cobbler profile edit --name=CentOS-7.1-x86_64 --kopts='net.ifnames=0 biosdevname=0'
+	
+	#	查看配置文件
+	[root@cobbler ~]# cobbler profile report
+	Name                           : CentOS-6.7-x86_64
+	TFTP Boot Files                : {}
+	Comment                        : 
+	DHCP Tag                       : default
+	Distribution                   : CentOS-6.7-x86_64
+	Enable gPXE?                   : 0
+	Enable PXE Menu?               : 1
+	Fetchable Files                : {}
+	Kernel Options                 : {}
+	Kernel Options (Post Install)  : {}
+	Kickstart                      : /var/lib/cobbler/kickstarts/CentOS-6.9-x86_64.cfg
+	Kickstart Metadata             : {}
+	Management Classes             : []
+	Management Parameters          : <<inherit>>
+	Name Servers                   : []
+	Name Servers Search Path       : []
+	Owners                         : ['admin']
+	Parent Profile                 : 
+	Internal proxy                 : 
+	Red Hat Management Key         : <<inherit>>
+	Red Hat Management Server      : <<inherit>>
+	Repos                          : []
+	Server Override                : <<inherit>>
+	Template Files                 : {}
+	Virt Auto Boot                 : 1
+	Virt Bridge                    : xenbr0
+	Virt CPUs                      : 1
+	Virt Disk Driver Type          : raw
+	Virt File Size(GB)             : 5
+	Virt Path                      : 
+	Virt RAM (MB)                  : 512
+	Virt Type                      : kvm
+	
+	#. 修改安装界面提示信息
+	[root@cobbler ~]# vim /etc/cobbler/pxe/pxedefault.template 
+	MENU TITLE Cobbler By cunzhang| http://cunzhang.info
+	
+	#. 同步所有配置	
+	[root@cobbler ~]# cobbler sync
+
+	
+	#. Web界面用户名、密码修改
+		#. web界面
+		https://10.0.0.101/cobbler_web		
+		#. 用户名
+		[root@cobbler ~]# ll /etc/cobbler/users.conf 
+		-rw-r--r-- 1 root root 848 7月  14 2016 /etc/cobbler/users.conf
+		#. 密码
+		[root@cobbler ~]# cat /etc/cobbler/users.digest
+		cobbler:Cobbler:a2d6bae81669d707b72c0bd9806e01f3
+		#. 修改密码
+		[root@cobbler ~]# htdigest /etc/cobbler/users.digest "Cobbler" cobbler
+	                                                         用户描述   用户名
+		
+
+## 定制安装
+	#	定制安装
+	[root@cobbler ~]# cobbler system add --name install-job1 --mac=00:50:56:22:6D:C4 --profile=CentOS-6.7-x86_64 --ip-address=10.0.0.222 --subnet=255.255.255.0 --gateway=10.0.0.2 --interface=eth0 --static=1 --hostname=cunzhang.example.com --name-servers="223.6.6.6" --kickstart=/var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.ks
+	
+	#. 重装操作系统
+		#1. epel源
+		[root@localhost ~]# wget -O /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-6.repo
+		
+		#2. 安装koan
+		[root@localhost ~]# yum install koan -y
+		
+		#3. 查询cobbler上可用安装源
+		[root@localhost ~]# koan --server=10.0.0.101 --list=profiles
+		- looking for Cobbler at http://10.0.0.101:80/cobbler_api
+		CentOS-6.7-x86_64
+		
+		#4. 指定重装的安装源
+		[root@localhost ~]# koan --replace-self --server=10.0.0.101 --profile=CentOS-6.7-x86_64
+		
+	#. 如何防范koan安装错误机器，或cobbler自动化安装错误机器？
+		***** 环境设计：装机Vlan
+		
+
+## 自定义yum源
+	#1. 添加repo
+	[root@cobbler ~]# cobbler repo add --name=openstack-newton --mirror=https://mirrors.aliyun.com/centos/7.4.1708/cloud/x86_64/openstack-newton/ --arch=x86_64 --breed=yum
+	
+	#2. 同步repo
+	[root@cobbler ~]# cobbler reposync
+	
+	#3. 添加repo到对应的profile
+	[root@cobbler ~]# cobbler profile edit --name=CentOS-6.7-x86_64 --repos="openstack-newton"
+	
+	#4. 修改kickstart文件，添加repo
+	[root@cobbler ~]# vim /var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.ks
+	%post
+	$yum_config_stanza
+	%end
+	
+	#5. 添加crontab，定期同步repo
+	[root@cobbler ~]# echo "0 3 * * * /usr/local/cobbler reposync --tries=3 --no-fail >/dev/null 2>&1" >>/var/spool/cron/root
